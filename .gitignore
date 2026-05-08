@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+*.keras
+raw_dataset/
+dataset/
+*.png
+*.jpg
+*.jpeg
+cv_results.json
+.vscode/
