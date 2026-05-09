@@ -42,7 +42,6 @@
       overflow-x: hidden;
     }
 
-    /* Organic blob bg */
     body::before {
       content: '';
       position: fixed;
@@ -514,8 +513,8 @@
     }
 
     .disease-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      display: flex;
+      flex-direction: column;
       gap: 0.75rem;
     }
     .disease-card {
@@ -523,30 +522,18 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       padding: 1rem;
-      cursor: pointer;
-      transition: all 0.18s;
       position: relative; overflow: hidden;
     }
-    .disease-card::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0;
-      height: 3px;
-    }
-    .disease-card.sev-high::before   { background: var(--red); }
-    .disease-card.sev-medium::before { background: var(--amber); }
-    .disease-card.sev-low::before    { background: var(--moss-light); }
-    .disease-card.sev-none::before   { background: #22c55e; }
-
-    .disease-card:hover { box-shadow: 0 4px 16px rgba(15,26,15,0.08); transform: translateY(-2px); border-color: var(--border-2); }
     .dc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 0.4rem; }
     .dc-name { font-size: 0.85rem; font-weight: 600; color: var(--ink-2); line-height: 1.3; }
     .dc-emoji { font-size: 20px; flex-shrink: 0; }
-    .dc-desc { font-size: 0.74rem; color: var(--ink-3); line-height: 1.5; margin-bottom: 0.5rem; }
+    .dc-desc { font-size: 0.74rem; color: var(--ink-3); line-height: 1.5; }
     .dc-sev {
       display: inline-block; padding: 2px 8px;
       border-radius: 99px;
       font-size: 0.64rem; font-weight: 700;
       text-transform: uppercase; letter-spacing: 0.06em;
+      white-space: nowrap; flex-shrink: 0;
     }
     .dc-sev.high   { background: #fee2e2; color: #b91c1c; }
     .dc-sev.medium { background: #fef3c7; color: #b45309; }
@@ -648,7 +635,7 @@
       <div class="loading" id="loading">
         <div class="spin"></div>
         <div class="loading-text">Analyzing your leaf…</div>
-        <div class="loading-sub">AI is examining the image.<br>Usually takes a few seconds.</div>
+        <div class="loading-sub">ML is examining the image.<br>Usually takes a few seconds.</div>
       </div>
 
       <!-- Alerts -->
@@ -686,14 +673,6 @@
             <div class="info-row">
               <div class="info-lbl">What it is</div>
               <div class="info-val" id="info-desc">—</div>
-            </div>
-            <div class="info-row">
-              <div class="info-lbl">Treatment</div>
-              <div class="info-val" id="info-treatment">—</div>
-            </div>
-            <div class="info-row">
-              <div class="info-lbl">Prevention</div>
-              <div class="info-val" id="info-prevention">—</div>
             </div>
           </div>
         </div>
@@ -766,106 +745,76 @@ const DISEASE_INFO = {
   'Healthy leaves': {
     emoji: '', severity: 'none', spread: 'None',
     desc: 'Your onion plant appears healthy! No signs of disease or pest damage. Continue your current farming practices.',
-    treatment: 'No treatment needed. Maintain proper watering, fertilization, and field sanitation.',
-    prevention: 'Keep spacing between plants, avoid overhead irrigation, and monitor regularly.',
     color: 'healthy'
   },
   'Purple blotch': {
     emoji: '', severity: 'high', spread: 'High — spreads via wind & rain',
     desc: 'A fungal disease by Alternaria porri. Shows small white lesions with purple centers that expand in warm, humid conditions.',
-    treatment: 'Apply Mancozeb or Iprodione fungicide every 7–10 days. Remove infected leaves immediately.',
-    prevention: 'Avoid overhead watering. Use disease-free seeds. Rotate crops every season.',
     color: 'disease'
   },
   'Alternaria_D': {
     emoji: '', severity: 'high', spread: 'High — airborne spores',
     desc: 'Dark brown to black spots with concentric rings (target board pattern). Thrives in humid conditions.',
-    treatment: 'Spray with Chlorothalonil or Copper-based fungicide. Remove heavily infected plant debris.',
-    prevention: 'Use certified disease-free seeds. Avoid working in wet fields. Practice crop rotation.',
     color: 'disease'
   },
   'Botrytis Leaf Blight': {
     emoji: '', severity: 'high', spread: 'High — airborne spores',
     desc: 'Caused by Botrytis squamosa. Small white lesions with light green halos. Heavy infection causes dieback.',
-    treatment: 'Apply Iprodione or Procymidone fungicides. Remove infected material promptly.',
-    prevention: 'Improve air circulation. Avoid excess nitrogen. Use wider plant spacing.',
     color: 'disease'
   },
   'Downy mildew': {
     emoji: '', severity: 'high', spread: 'Very High — spreads fast in cool, wet weather',
     desc: 'Caused by Peronospora destructor. Pale oval patches with grayish-purple fuzzy growth underneath.',
-    treatment: 'Use Metalaxyl or Dimethomorph fungicides. Copper-based sprays as protectant.',
-    prevention: 'Plant resistant varieties. Avoid overhead irrigation. Destroy infected debris after harvest.',
     color: 'disease'
   },
   'Fusarium-D': {
     emoji: '', severity: 'high', spread: 'Medium — soil-borne',
     desc: 'Fusarium basal rot causes yellowing and wilting from the tips. Bulb base becomes brown and rotten.',
-    treatment: 'No effective chemical cure. Remove and destroy infected plants. Apply Trichoderma to soil.',
-    prevention: 'Use disease-free transplants and treated seeds. Improve drainage. 3–4 year crop rotation.',
     color: 'disease'
   },
   'Bulb Rot': {
     emoji: '', severity: 'high', spread: 'Medium — soil & water',
     desc: 'Bacterial soft rot causing water-soaked, foul-smelling decay. Usually enters through wounds.',
-    treatment: 'No effective cure. Remove infected plants immediately. Apply copper bactericides preventively.',
-    prevention: 'Avoid wounding plants. Ensure proper field drainage. Cure harvested bulbs properly.',
     color: 'disease'
   },
   'Bulb_blight-D': {
     emoji: '', severity: 'medium', spread: 'Medium',
     desc: 'Causes blighting of outer bulb scales with dark lesions. Can reduce marketable yield significantly.',
-    treatment: 'Apply appropriate fungicide. Consult your local DA office for confirmation.',
-    prevention: 'Use certified seeds. Practice proper field sanitation and crop rotation.',
     color: 'disease'
   },
   'Rust': {
     emoji: '', severity: 'medium', spread: 'High — wind-borne spores',
     desc: 'Orange-yellow powdery pustules on leaf surfaces. Reduces photosynthesis and plant vigor.',
-    treatment: 'Apply Propiconazole or Tebuconazole fungicide at first sign of infection.',
-    prevention: 'Remove volunteer onion plants. Avoid overhead irrigation. Monitor fields regularly.',
     color: 'disease'
   },
   'Caterpillar-P': {
     emoji: '', severity: 'medium', spread: 'Medium — pest migration',
     desc: 'Irregular holes and scraping on leaves. Severe infestation can defoliate plants completely.',
-    treatment: 'Apply Chlorpyrifos or Bacillus thuringiensis (Bt). Hand-pick larvae in small farms.',
-    prevention: 'Install light traps. Use pheromone traps for moths. Encourage natural predators.',
     color: 'disease'
   },
   'Virosis-D': {
     emoji: '', severity: 'medium', spread: 'High — spread by aphids',
     desc: 'Viral diseases cause yellow streaking, mosaic patterns, and leaf distortion. Transmitted by aphids.',
-    treatment: 'No cure. Remove and destroy infected plants. Control aphid population.',
-    prevention: 'Use virus-free planting material. Control aphids early. Avoid planting near infected crops.',
     color: 'disease'
   },
   'Iris yellow virus_augment': {
     emoji: '', severity: 'medium', spread: 'High — aphid-transmitted',
     desc: 'Causes yellow streaking and leaf distortion. Reduces yield and bulb quality significantly.',
-    treatment: 'No chemical cure. Focus on aphid control with Imidacloprid.',
-    prevention: 'Use certified virus-free seed sets. Rogue out infected plants early.',
     color: 'disease'
   },
   'Xanthomonas Leaf Blight': {
     emoji: '', severity: 'medium', spread: 'Medium — water splash',
     desc: 'Bacterial disease with water-soaked lesions turning brown with yellow halos. Spreads in rainy season.',
-    treatment: 'Apply Copper hydroxide or Copper oxychloride. Avoid working in wet fields.',
-    prevention: 'Use disease-free transplants. Avoid overhead irrigation. Practice field sanitation.',
     color: 'disease'
   },
   'stemphylium Leaf Blight': {
     emoji: '', severity: 'medium', spread: 'Medium — airborne',
     desc: 'Small yellow to orange lesions expanding and causing tip dieback. Often alongside purple blotch.',
-    treatment: 'Apply Mancozeb or Iprodione. Tank-mix for broader spectrum control.',
-    prevention: 'Avoid crop stress. Ensure balanced fertilization. Remove infected debris.',
     color: 'disease'
   },
   'onion1': {
     emoji: '', severity: 'low', spread: 'Low',
     desc: 'General onion condition detected. May indicate early stage issues or image quality concerns.',
-    treatment: 'Monitor the plant closely. Consult an agricultural technician if symptoms worsen.',
-    prevention: 'Maintain proper cultural practices: correct spacing, balanced fertilization, regular monitoring.',
     color: 'disease'
   },
 };
@@ -1051,7 +1000,7 @@ btnAnalyze.addEventListener('click', async () => {
     }
   } catch(e) {
     setStatus('sleeping', 'Server sleeping…');
-    showError(`Could not connect. The server may be waking up — wait 30 seconds and try again.<br><small style="opacity:0.75">API: ${API_URL}</small>`);
+    showError(`Could not connect. The server may be waking up — wait 30 seconds and try again.`);
   } finally {
     loading.style.display = 'none';
   }
@@ -1063,15 +1012,13 @@ function showResult(data) {
   const info = DISEASE_INFO[name] || {
     emoji: '🌿', severity: 'low', spread: 'Unknown',
     desc: 'Disease detected. Please consult your local agricultural technician.',
-    treatment: 'Consult your local DA extension officer.',
-    prevention: 'Practice good field hygiene and crop rotation.',
     color: 'disease'
   };
 
   const hero = document.getElementById('result-hero');
   hero.className = `result-header ${info.color === 'healthy' ? 'healthy' : 'disease'}`;
   hero.setAttribute('data-emoji', info.emoji);
-  document.getElementById('result-badge').textContent = info.color === 'healthy' ? '✅ Healthy Plant' : '⚠️ Disease Detected';
+  document.getElementById('result-badge').textContent = info.color === 'healthy' ? 'Healthy Plant' : 'Disease Detected';
   document.getElementById('result-name').textContent = name;
   document.getElementById('conf-fill').style.width = Math.min(conf, 100) + '%';
   document.getElementById('conf-label').textContent = conf.toFixed(1) + '% confident';
@@ -1081,8 +1028,6 @@ function showResult(data) {
   sevEl.className = `sev-pill ${info.severity}`;
   document.getElementById('info-spread').textContent = info.spread;
   document.getElementById('info-desc').textContent = info.desc;
-  document.getElementById('info-treatment').textContent = info.treatment;
-  document.getElementById('info-prevention').textContent = info.prevention;
 
   const container = document.getElementById('bars-container');
   container.innerHTML = '';
@@ -1111,14 +1056,13 @@ function buildDiseaseGuide() {
   count.textContent = `${entries.length} conditions`;
   entries.forEach(([name, info]) => {
     const card = document.createElement('div');
-    card.className = `disease-card sev-${info.severity}`;
+    card.className = `disease-card`;
     card.innerHTML = `
       <div class="dc-top">
         <div class="dc-name">${name}</div>
-        <div class="dc-emoji">${info.emoji}</div>
+        <span class="dc-sev ${info.severity}">${info.severity === 'none' ? 'healthy' : info.severity}</span>
       </div>
-      <div class="dc-desc">${info.desc.substring(0,90)}…</div>
-      <span class="dc-sev ${info.severity}">${info.severity === 'none' ? 'healthy' : info.severity}</span>`;
+      <div class="dc-desc">${info.desc}</div>`;
     grid.appendChild(card);
   });
 }
