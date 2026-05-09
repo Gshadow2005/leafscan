@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeafScan — Onion Disease Detector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:        #0f1a0f;
+      --ink-2:      #2d3d2d;
+      --ink-3:      #516351;
+      --ink-4:      #8fa68f;
+      --moss:       #1e4d2b;
+      --moss-2:     #2e6b3e;
+      --moss-light: #4a9b60;
+      --sage:       #c8dfc4;
+      --sage-light: #e8f3e6;
+      --cream:      #f6f4ee;
+      --cream-2:    #ede9df;
+      --amber:      #c97b1a;
+      --amber-bg:   #fdf3e3;
+      --red:        #b53a2f;
+      --red-bg:     #fdecea;
+      --white:      #ffffff;
+      --border:     rgba(30,77,43,0.14);
+      --border-2:   rgba(30,77,43,0.22);
+      --radius:     16px;
+      --radius-sm:  10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      background: var(--cream);
+      font-family: 'DM Sans', sans-serif;
+      color: var(--ink);
+      overflow-x: hidden;
+    }
+
+    /* Organic blob bg */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20vh; right: -15vw;
+      width: 60vw; height: 60vw;
+      background: radial-gradient(ellipse at center, rgba(46,107,62,0.09) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -10vh; left: -10vw;
+      width: 50vw; height: 50vw;
+      background: radial-gradient(ellipse at center, rgba(201,123,26,0.06) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    .page {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center;
+      padding: 0 1.25rem 6rem;
+    }
+
+    /* ── Header ── */
+    .header {
+      width: 100%; max-width: 700px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 2rem 0 0;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .brand-mark {
+      width: 42px; height: 42px;
+      background: var(--moss);
+      border-radius: 12px;
+      display: grid; place-items: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.5rem;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+    .brand-name span { color: var(--moss-2); }
+
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 14px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      font-size: 0.75rem; font-weight: 500;
+      color: var(--ink-3);
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.checking { background: var(--ink-4); animation: blink 1.2s ease-in-out infinite; }
+    .status-dot.active   { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
+    .status-dot.sleeping { background: var(--amber); animation: blink 2s ease-in-out infinite; }
+    .status-dot.offline  { background: var(--red); }
+
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.35} }
+
+    /* ── Hero text ── */
+    .hero {
+      width: 100%; max-width: 700px;
+      padding: 3.5rem 0 2.5rem;
+      animation: fadeUp 0.6s ease both;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--moss);
+      color: #b8e4c0;
+      font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 5px 12px; border-radius: 99px;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.6rem, 6vw, 4rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      margin-bottom: 1rem;
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: var(--moss-2);
+    }
+    .hero p {
+      font-size: 1rem; color: var(--ink-3);
+      line-height: 1.65; max-width: 480px;
+      font-weight: 300;
+    }
+
+    /* ── Two-column layout ── */
+    .main-grid {
+      width: 100%; max-width: 700px;
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 1.25rem;
+      align-items: start;
+    }
+    @media (max-width: 620px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      animation: fadeUp 0.6s 0.05s ease both;
+    }
+    .card-sm {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+
+    .section-label {
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--ink-4);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 1.5px dashed var(--border-2);
+      border-radius: var(--radius-sm);
+      padding: 2rem 1.25rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--cream);
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--moss-2);
+      background: var(--sage-light);
+    }
+    .upload-icon {
+      width: 60px; height: 60px;
+      background: var(--sage-light);
+      border-radius: 50%;
+      display: grid; place-items: center;
+      margin: 0 auto 1rem;
+      font-size: 28px;
+      transition: transform 0.2s;
+    }
+    .upload-zone:hover .upload-icon { transform: scale(1.1) rotate(-8deg); }
+    .upload-label {
+      font-size: 0.9rem; font-weight: 500; color: var(--ink-2);
+      margin-bottom: 0.25rem;
+    }
+    .upload-sub { font-size: 0.78rem; color: var(--ink-4); }
+    .format-row {
+      display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;
+      margin-top: 0.875rem;
+    }
+    .fmt {
+      padding: 2px 9px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      font-size: 0.65rem; font-weight: 600;
+      color: var(--ink-4);
+      letter-spacing: 0.06em;
+    }
+
+    .or-row {
+      display: flex; align-items: center; gap: 10px; margin: 1rem 0;
+    }
+    .or-row::before, .or-row::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .or-row span { font-size: 0.7rem; color: var(--ink-4); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    .btn-cam {
+      width: 100%; padding: 0.72rem;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius-sm);
+      background: var(--cream);
+      color: var(--ink-2);
+      font-size: 0.85rem; font-weight: 500;
+      cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .btn-cam:hover { border-color: var(--moss-2); color: var(--moss); background: var(--sage-light); }
+
+    /* ── Preview ── */
+    .preview-section { display: none; }
+    .preview-wrap {
+      position: relative;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--ink);
+    }
+    .preview-wrap img, .preview-wrap video {
+      width: 100%; max-height: 280px;
+      object-fit: contain; display: block;
+    }
+    .btn-clear {
+      position: absolute; top: 8px; right: 8px;
+      width: 30px; height: 30px;
+      background: rgba(0,0,0,0.6);
+      border: none; border-radius: 50%;
+      color: #fff; font-size: 16px;
+      display: grid; place-items: center;
+      cursor: pointer; backdrop-filter: blur(4px);
+    }
+    .btn-clear:hover { background: rgba(0,0,0,0.85); }
+    .cam-controls { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-snap {
+      flex: 1; padding: 0.75rem;
+      background: var(--moss); color: #fff;
+      border: none; border-radius: var(--radius-sm);
+      font-size: 0.875rem; font-weight: 600; font-family: inherit;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-snap:hover { background: var(--ink-2); }
+    .btn-cancel-cam {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: transparent; color: var(--ink-3);
+      font-size: 0.8rem; font-family: inherit; cursor: pointer;
+    }
+    .btn-cancel-cam:hover { background: var(--cream); }
+
+    /* ── Analyze button ── */
+    .btn-analyze {
+      width: 100%; margin-top: 1rem;
+      padding: 0.9rem;
+      background: var(--moss);
+      color: #fff; border: none; border-radius: var(--radius-sm);
+      font-size: 0.9rem; font-weight: 600; font-family: inherit;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      cursor: pointer; letter-spacing: 0.01em;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-analyze:hover { background: var(--ink-2); }
+    .btn-analyze:active { transform: scale(0.99); }
+    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Loading ── */
+    .loading {
+      display: none; flex-direction: column;
+      align-items: center; padding: 2.5rem 1rem; gap: 0.75rem;
+    }
+    .spin {
+      width: 48px; height: 48px;
+      border: 3px solid var(--sage);
+      border-top-color: var(--moss-2);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1rem; color: var(--ink-2);
+    }
+    .loading-sub { font-size: 0.78rem; color: var(--ink-4); text-align: center; }
+
+    /* ── Alerts ── */
+    .alert-box {
+      display: none; align-items: flex-start; gap: 10px;
+      margin-top: 1rem; padding: 0.875rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem; line-height: 1.55;
+    }
+    .alert-box.error { background: var(--red-bg); border: 1px solid rgba(181,58,47,0.18); color: var(--red); }
+    .alert-box.warn  { background: var(--amber-bg); border: 1px solid rgba(201,123,26,0.2); color: var(--amber); }
+    .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Right sidebar ── */
+    .sidebar { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .tip-list { list-style: none; }
+    .tip-list li {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem; color: var(--ink-3); line-height: 1.5;
+    }
+    .tip-list li:last-child { border-bottom: none; }
+    .tip-dot {
+      width: 6px; height: 6px;
+      background: var(--moss-light);
+      border-radius: 50%;
+      flex-shrink: 0; margin-top: 5px;
+    }
+
+    .stat-row {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 0.75rem; color: var(--ink-4); }
+    .stat-value { font-size: 0.8rem; font-weight: 500; color: var(--ink-2); }
+
+    /* ── Result ── */
+    .result-card { display: none; margin-top: 1.25rem; animation: fadeUp 0.4s ease; }
+
+    .result-header {
+      border-radius: var(--radius-sm);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      position: relative; overflow: hidden;
+    }
+    .result-header.healthy { background: var(--moss); }
+    .result-header.disease { background: #6b1e1e; }
+    .result-header::after {
+      content: attr(data-emoji);
+      position: absolute; right: -8px; bottom: -20px;
+      font-size: 90px; opacity: 0.12; line-height: 1;
+    }
+
+    .result-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 99px;
+      font-size: 0.68rem; font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 0.625rem;
+    }
+    .result-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.5rem; color: #fff; line-height: 1.2;
+      margin-bottom: 0.625rem;
+    }
+    .conf-bar-wrap { display: flex; align-items: center; gap: 10px; }
+    .conf-track {
+      flex: 1; height: 5px;
+      background: rgba(255,255,255,0.2); border-radius: 99px; overflow: hidden;
+    }
+    .conf-fill {
+      height: 100%; border-radius: 99px;
+      background: rgba(255,255,255,0.85);
+      transition: width 0.8s cubic-bezier(0.22,1,0.36,1);
+    }
+    .conf-lbl { font-size: 0.76rem; font-weight: 600; color: rgba(255,255,255,0.85); white-space: nowrap; }
+
+    /* Info rows */
+    .info-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .info-section-head {
+      padding: 0.6rem 1rem;
+      background: var(--cream);
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--ink-4);
+      border-bottom: 1px solid var(--border);
+    }
+    .info-body { padding: 1rem; }
+    .info-row {
+      display: flex; gap: 12px;
+      margin-bottom: 0.875rem;
+    }
+    .info-row:last-child { margin-bottom: 0; }
+    .info-lbl {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--ink-4); font-weight: 600;
+      width: 90px; flex-shrink: 0; padding-top: 1px;
+    }
+    .info-val { font-size: 0.85rem; color: var(--ink-2); line-height: 1.55; }
+
+    .sev-pill {
+      display: inline-block;
+      padding: 2px 10px; border-radius: 99px;
+      font-size: 0.72rem; font-weight: 700;
+    }
+    .sev-pill.high   { background: #fee2e2; color: #b91c1c; }
+    .sev-pill.medium { background: #fef3c7; color: #b45309; }
+    .sev-pill.low    { background: #dcfce7; color: #15803d; }
+    .sev-pill.none   { background: #dcfce7; color: #15803d; }
+
+    /* Score bars */
+    .scores-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .scores-head {
+      padding: 0.6rem 1rem;
+      background: var(--cream);
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--ink-4);
+      border-bottom: 1px solid var(--border);
+    }
+    .scores-body { padding: 0.875rem 1rem; }
+    .bar-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 0.5rem;
+    }
+    .bar-row:last-child { margin-bottom: 0; }
+    .bar-lbl {
+      font-size: 0.74rem; color: var(--ink-3);
+      width: 160px; flex-shrink: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bar-lbl.top { color: var(--moss); font-weight: 600; }
+    .bar-track {
+      flex: 1; height: 5px;
+      background: var(--sage-light); border-radius: 99px; overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 99px;
+      background: var(--moss-2);
+      transition: width 0.7s cubic-bezier(0.22,1,0.36,1);
+    }
+    .bar-fill.dim { background: var(--sage); }
+    .bar-pct { font-size: 0.72rem; color: var(--ink-4); width: 38px; text-align: right; font-weight: 500; }
+    .bar-pct.top { color: var(--moss); }
+
+    .btn-retry {
+      width: 100%; padding: 0.75rem;
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius-sm);
+      background: var(--cream);
+      color: var(--ink-3);
+      font-size: 0.85rem; font-family: inherit; font-weight: 500;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      transition: all 0.15s;
+    }
+    .btn-retry:hover { border-color: var(--moss); color: var(--moss); background: var(--sage-light); }
+
+    /* ── Guide section ── */
+    .guide-section {
+      width: 100%; max-width: 700px;
+      margin-top: 3rem;
+      animation: fadeUp 0.6s 0.15s ease both;
+    }
+    .guide-header {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .guide-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.6rem; color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+    .guide-count {
+      font-size: 0.75rem; color: var(--ink-4); font-weight: 500;
+    }
+
+    .disease-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+    .disease-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.18s;
+      position: relative; overflow: hidden;
+    }
+    .disease-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .disease-card.sev-high::before   { background: var(--red); }
+    .disease-card.sev-medium::before { background: var(--amber); }
+    .disease-card.sev-low::before    { background: var(--moss-light); }
+    .disease-card.sev-none::before   { background: #22c55e; }
+
+    .disease-card:hover { box-shadow: 0 4px 16px rgba(15,26,15,0.08); transform: translateY(-2px); border-color: var(--border-2); }
+    .dc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 0.4rem; }
+    .dc-name { font-size: 0.85rem; font-weight: 600; color: var(--ink-2); line-height: 1.3; }
+    .dc-emoji { font-size: 20px; flex-shrink: 0; }
+    .dc-desc { font-size: 0.74rem; color: var(--ink-3); line-height: 1.5; margin-bottom: 0.5rem; }
+    .dc-sev {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 0.64rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .dc-sev.high   { background: #fee2e2; color: #b91c1c; }
+    .dc-sev.medium { background: #fef3c7; color: #b45309; }
+    .dc-sev.low    { background: #dcfce7; color: #15803d; }
+    .dc-sev.none   { background: #dcfce7; color: #15803d; }
+
+    /* ── Footer ── */
+    .footer {
+      width: 100%; max-width: 700px;
+      margin-top: 3rem; padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .footer-brand { font-family: 'DM Serif Display', serif; font-size: 1.1rem; color: var(--ink-3); }
+    .footer-text { font-size: 0.73rem; color: var(--ink-4); line-height: 1.6; max-width: 320px; }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    input[type=file] { display: none; }
+    canvas { display: none; }
+
+    @media (max-width: 480px) {
+      .hero h1 { font-size: 2.2rem; }
+      .card { padding: 1.25rem; }
+      .bar-lbl { width: 110px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Header ── -->
+  <div class="header">
+    <div class="brand">
+      <div class="brand-mark">🌿</div>
+      <div class="brand-name">Leaf<span>Scan</span></div>
+    </div>
+    <div class="status-pill" id="status-bar">
+      <div class="status-dot checking" id="status-dot"></div>
+      <span id="status-text">Checking…</span>
+    </div>
+  </div>
+
+  <!-- ── Hero ── -->
+  <div class="hero">
+    <div class="hero-eyebrow"> Powered by MobileNetV2</div>
+    <h1>Detect onion diseases<br><em>instantly</em></h1>
+    <p>Photograph your onion plant leaves and get a diagnosis in seconds. Protect your harvest before it's too late.</p>
+  </div>
+
+  <!-- ── Main grid ── -->
+  <div class="main-grid">
+
+    <!-- Left: scan card -->
+    <div class="card">
+      <div class="section-label">Scan Your Leaf</div>
+
+      <!-- Upload area -->
+      <div id="upload-area">
+        <div class="upload-zone" id="drop-zone">
+          <div class="upload-icon">🍃</div>
+          <div class="upload-label">Drop a leaf photo here</div>
+          <div class="upload-sub">or click to browse your gallery</div>
+          <div class="format-row">
+            <span class="fmt">JPG</span>
+            <span class="fmt">PNG</span>
+            <span class="fmt">WEBP</span>
+            <span class="fmt">BMP</span>
+            <span class="fmt">Max 10MB</span>
+          </div>
+        </div>
+        <div class="or-row"><span>or</span></div>
+        <button class="btn-cam" id="btn-open-cam">📷 &nbsp;Use Camera</button>
+      </div>
+
+      <!-- Preview -->
+      <div class="preview-section" id="preview-section">
+        <div class="preview-wrap" id="preview-wrap">
+          <img id="preview-img" src="" alt="Leaf preview" style="display:none" />
+          <video id="cam-video" autoplay playsinline style="display:none"></video>
+          <button class="btn-clear" id="btn-clear" style="display:none" aria-label="Remove image">✕</button>
+        </div>
+        <div class="cam-controls" id="cam-controls" style="display:none">
+          <button class="btn-snap" id="btn-snap">📷 Capture</button>
+          <button class="btn-cancel-cam" id="btn-cancel-cam">Cancel</button>
+        </div>
+        <button class="btn-analyze" id="btn-analyze" style="display:none">
+          🔬 &nbsp;Analyze Leaf
+        </button>
+      </div>
+
+      <!-- Loading -->
+      <div class="loading" id="loading">
+        <div class="spin"></div>
+        <div class="loading-text">Analyzing your leaf…</div>
+        <div class="loading-sub">AI is examining the image.<br>Usually takes a few seconds.</div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="alert-box error" id="error-box" role="alert">
+        <span class="alert-icon">⚠️</span>
+        <span id="error-msg">Could not connect to server.</span>
+      </div>
+      <div class="alert-box warn" id="warn-box" role="alert">
+        <span class="alert-icon">🤔</span>
+        <span id="warn-msg">This doesn't look like an onion leaf.</span>
+      </div>
+
+      <!-- Result -->
+      <div class="result-card" id="result-card">
+        <div class="result-header" id="result-hero" data-emoji="🌿">
+          <div class="result-tag" id="result-badge">Detected</div>
+          <div class="result-name" id="result-name">—</div>
+          <div class="conf-bar-wrap">
+            <div class="conf-track"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
+            <div class="conf-lbl" id="conf-label">—</div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-head">Disease Information</div>
+          <div class="info-body">
+            <div class="info-row">
+              <div class="info-lbl">Severity</div>
+              <div class="info-val"><span class="sev-pill" id="info-severity">—</span></div>
+            </div>
+            <div class="info-row">
+              <div class="info-lbl">Spread Risk</div>
+              <div class="info-val" id="info-spread">—</div>
+            </div>
+            <div class="info-row">
+              <div class="info-lbl">What it is</div>
+              <div class="info-val" id="info-desc">—</div>
+            </div>
+            <div class="info-row">
+              <div class="info-lbl">Treatment</div>
+              <div class="info-val" id="info-treatment">—</div>
+            </div>
+            <div class="info-row">
+              <div class="info-lbl">Prevention</div>
+              <div class="info-val" id="info-prevention">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scores-wrap">
+          <div class="scores-head">All class scores (top 8)</div>
+          <div class="scores-body" id="bars-container"></div>
+        </div>
+
+        <button class="btn-retry" id="btn-retry">↺ &nbsp;Scan Another Leaf</button>
+      </div>
+    </div>
+
+    <!-- Right: sidebar -->
+    <div class="sidebar">
+      <div class="card-sm">
+        <div class="section-label">Photo Tips</div>
+        <ul class="tip-list">
+          <li><div class="tip-dot"></div>Hold the leaf flat under natural light</li>
+          <li><div class="tip-dot"></div>Fill the frame with the affected area</li>
+          <li><div class="tip-dot"></div>Avoid shadows and blurry shots</li>
+          <li><div class="tip-dot"></div>Capture both sides of the leaf when possible</li>
+          <li><div class="tip-dot"></div>Clean camera lens for best results</li>
+        </ul>
+      </div>
+
+      <div class="card-sm">
+        <div class="section-label">Coverage</div>
+        <div class="stat-row"><span class="stat-label">Disease classes</span><span class="stat-value">15</span></div>
+        <div class="stat-row"><span class="stat-label">Healthy detection</span><span class="stat-value">Included</span></div>
+        <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value">MobileNetV2</span></div>
+        <div class="stat-row"><span class="stat-label">Built for</span><span class="stat-value">Farmers</span></div>
+      </div>
+
+      <div class="card-sm" style="background: var(--moss); border-color: transparent;">
+        <div style="font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.5); margin-bottom: 0.75rem;">Notice</div>
+        <p style="font-size: 0.78rem; color: rgba(255,255,255,0.8); line-height: 1.6;">Not a substitute for professional advice. Consult your local DA extension officer for serious infestations.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Disease Guide ── -->
+  <div class="guide-section">
+    <div class="guide-header">
+      <div class="guide-title">Disease Reference Guide</div>
+      <div class="guide-count" id="guide-count"></div>
+    </div>
+    <div class="disease-grid" id="disease-grid"></div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="footer">
+    <div>
+      <div class="footer-brand">LeafScan</div>
+      <div class="footer-text" style="margin-top:4px">© 2025 · Powered by MobileNetV2</div>
+    </div>
+    <div class="footer-text">Built for farmers to get fast, reliable onion disease diagnosis right from their phone.</div>
+  </div>
+
+</div>
+
+<input type="file" id="file-input" accept="image/*" />
+<canvas id="snap-canvas"></canvas>
+
+<script>
+const API_URL = 'https://papabing84-leafscan.hf.space';
+
+const DISEASE_INFO = {
+  'Healthy leaves': {
+    emoji: '', severity: 'none', spread: 'None',
+    desc: 'Your onion plant appears healthy! No signs of disease or pest damage. Continue your current farming practices.',
+    treatment: 'No treatment needed. Maintain proper watering, fertilization, and field sanitation.',
+    prevention: 'Keep spacing between plants, avoid overhead irrigation, and monitor regularly.',
+    color: 'healthy'
+  },
+  'Purple blotch': {
+    emoji: '', severity: 'high', spread: 'High — spreads via wind & rain',
+    desc: 'A fungal disease by Alternaria porri. Shows small white lesions with purple centers that expand in warm, humid conditions.',
+    treatment: 'Apply Mancozeb or Iprodione fungicide every 7–10 days. Remove infected leaves immediately.',
+    prevention: 'Avoid overhead watering. Use disease-free seeds. Rotate crops every season.',
+    color: 'disease'
+  },
+  'Alternaria_D': {
+    emoji: '', severity: 'high', spread: 'High — airborne spores',
+    desc: 'Dark brown to black spots with concentric rings (target board pattern). Thrives in humid conditions.',
+    treatment: 'Spray with Chlorothalonil or Copper-based fungicide. Remove heavily infected plant debris.',
+    prevention: 'Use certified disease-free seeds. Avoid working in wet fields. Practice crop rotation.',
+    color: 'disease'
+  },
+  'Botrytis Leaf Blight': {
+    emoji: '', severity: 'high', spread: 'High — airborne spores',
+    desc: 'Caused by Botrytis squamosa. Small white lesions with light green halos. Heavy infection causes dieback.',
+    treatment: 'Apply Iprodione or Procymidone fungicides. Remove infected material promptly.',
+    prevention: 'Improve air circulation. Avoid excess nitrogen. Use wider plant spacing.',
+    color: 'disease'
+  },
+  'Downy mildew': {
+    emoji: '', severity: 'high', spread: 'Very High — spreads fast in cool, wet weather',
+    desc: 'Caused by Peronospora destructor. Pale oval patches with grayish-purple fuzzy growth underneath.',
+    treatment: 'Use Metalaxyl or Dimethomorph fungicides. Copper-based sprays as protectant.',
+    prevention: 'Plant resistant varieties. Avoid overhead irrigation. Destroy infected debris after harvest.',
+    color: 'disease'
+  },
+  'Fusarium-D': {
+    emoji: '', severity: 'high', spread: 'Medium — soil-borne',
+    desc: 'Fusarium basal rot causes yellowing and wilting from the tips. Bulb base becomes brown and rotten.',
+    treatment: 'No effective chemical cure. Remove and destroy infected plants. Apply Trichoderma to soil.',
+    prevention: 'Use disease-free transplants and treated seeds. Improve drainage. 3–4 year crop rotation.',
+    color: 'disease'
+  },
+  'Bulb Rot': {
+    emoji: '', severity: 'high', spread: 'Medium — soil & water',
+    desc: 'Bacterial soft rot causing water-soaked, foul-smelling decay. Usually enters through wounds.',
+    treatment: 'No effective cure. Remove infected plants immediately. Apply copper bactericides preventively.',
+    prevention: 'Avoid wounding plants. Ensure proper field drainage. Cure harvested bulbs properly.',
+    color: 'disease'
+  },
+  'Bulb_blight-D': {
+    emoji: '', severity: 'medium', spread: 'Medium',
+    desc: 'Causes blighting of outer bulb scales with dark lesions. Can reduce marketable yield significantly.',
+    treatment: 'Apply appropriate fungicide. Consult your local DA office for confirmation.',
+    prevention: 'Use certified seeds. Practice proper field sanitation and crop rotation.',
+    color: 'disease'
+  },
+  'Rust': {
+    emoji: '', severity: 'medium', spread: 'High — wind-borne spores',
+    desc: 'Orange-yellow powdery pustules on leaf surfaces. Reduces photosynthesis and plant vigor.',
+    treatment: 'Apply Propiconazole or Tebuconazole fungicide at first sign of infection.',
+    prevention: 'Remove volunteer onion plants. Avoid overhead irrigation. Monitor fields regularly.',
+    color: 'disease'
+  },
+  'Caterpillar-P': {
+    emoji: '', severity: 'medium', spread: 'Medium — pest migration',
+    desc: 'Irregular holes and scraping on leaves. Severe infestation can defoliate plants completely.',
+    treatment: 'Apply Chlorpyrifos or Bacillus thuringiensis (Bt). Hand-pick larvae in small farms.',
+    prevention: 'Install light traps. Use pheromone traps for moths. Encourage natural predators.',
+    color: 'disease'
+  },
+  'Virosis-D': {
+    emoji: '', severity: 'medium', spread: 'High — spread by aphids',
+    desc: 'Viral diseases cause yellow streaking, mosaic patterns, and leaf distortion. Transmitted by aphids.',
+    treatment: 'No cure. Remove and destroy infected plants. Control aphid population.',
+    prevention: 'Use virus-free planting material. Control aphids early. Avoid planting near infected crops.',
+    color: 'disease'
+  },
+  'Iris yellow virus_augment': {
+    emoji: '', severity: 'medium', spread: 'High — aphid-transmitted',
+    desc: 'Causes yellow streaking and leaf distortion. Reduces yield and bulb quality significantly.',
+    treatment: 'No chemical cure. Focus on aphid control with Imidacloprid.',
+    prevention: 'Use certified virus-free seed sets. Rogue out infected plants early.',
+    color: 'disease'
+  },
+  'Xanthomonas Leaf Blight': {
+    emoji: '', severity: 'medium', spread: 'Medium — water splash',
+    desc: 'Bacterial disease with water-soaked lesions turning brown with yellow halos. Spreads in rainy season.',
+    treatment: 'Apply Copper hydroxide or Copper oxychloride. Avoid working in wet fields.',
+    prevention: 'Use disease-free transplants. Avoid overhead irrigation. Practice field sanitation.',
+    color: 'disease'
+  },
+  'stemphylium Leaf Blight': {
+    emoji: '', severity: 'medium', spread: 'Medium — airborne',
+    desc: 'Small yellow to orange lesions expanding and causing tip dieback. Often alongside purple blotch.',
+    treatment: 'Apply Mancozeb or Iprodione. Tank-mix for broader spectrum control.',
+    prevention: 'Avoid crop stress. Ensure balanced fertilization. Remove infected debris.',
+    color: 'disease'
+  },
+  'onion1': {
+    emoji: '', severity: 'low', spread: 'Low',
+    desc: 'General onion condition detected. May indicate early stage issues or image quality concerns.',
+    treatment: 'Monitor the plant closely. Consult an agricultural technician if symptoms worsen.',
+    prevention: 'Maintain proper cultural practices: correct spacing, balanced fertilization, regular monitoring.',
+    color: 'disease'
+  },
+};
+
+// DOM refs
+const dropZone    = document.getElementById('drop-zone');
+const fileInput   = document.getElementById('file-input');
+const uploadArea  = document.getElementById('upload-area');
+const previewSec  = document.getElementById('preview-section');
+const previewImg  = document.getElementById('preview-img');
+const camVideo    = document.getElementById('cam-video');
+const btnClear    = document.getElementById('btn-clear');
+const btnAnalyze  = document.getElementById('btn-analyze');
+const btnOpenCam  = document.getElementById('btn-open-cam');
+const btnSnap     = document.getElementById('btn-snap');
+const btnCancelCam= document.getElementById('btn-cancel-cam');
+const camControls = document.getElementById('cam-controls');
+const loading     = document.getElementById('loading');
+const resultCard  = document.getElementById('result-card');
+const errorBox    = document.getElementById('error-box');
+const errorMsg    = document.getElementById('error-msg');
+const warnBox     = document.getElementById('warn-box');
+const warnMsg     = document.getElementById('warn-msg');
+const snapCanvas  = document.getElementById('snap-canvas');
+const statusDot   = document.getElementById('status-dot');
+const statusText  = document.getElementById('status-text');
+
+let currentFile = null, stream = null;
+
+async function checkServerStatus() {
+  setStatus('checking', 'Checking…');
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`${API_URL}/health`, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json();
+      setStatus(data.model_ready ? 'active' : 'sleeping', data.model_ready ? 'Ready' : 'Loading model…');
+    } else {
+      setStatus('sleeping', 'Waking up…');
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      setStatus('sleeping', 'Waking up… (~30s)');
+      setTimeout(checkServerStatus, 15000);
+    } else {
+      setStatus('offline', 'Offline');
+    }
+  }
+}
+
+function setStatus(state, text) {
+  statusDot.className = `status-dot ${state}`;
+  statusText.textContent = text;
+}
+
+checkServerStatus();
+setInterval(checkServerStatus, 60000);
+
+// Upload / drop
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
+
+function loadFile(file) {
+  currentFile = file;
+  previewImg.src = URL.createObjectURL(file);
+  previewImg.style.display = 'block';
+  camVideo.style.display = 'none';
+  btnClear.style.display = 'grid';
+  btnAnalyze.style.display = 'flex';
+  camControls.style.display = 'none';
+  showPreview();
+}
+
+function showPreview() {
+  uploadArea.style.display = 'none';
+  previewSec.style.display = 'block';
+  resultCard.style.display = 'none';
+  errorBox.style.display = 'none';
+  warnBox.style.display = 'none';
+}
+
+function resetAll() {
+  uploadArea.style.display = 'block';
+  previewSec.style.display = 'none';
+  previewImg.style.display = 'none';
+  previewImg.src = '';
+  camVideo.style.display = 'none';
+  btnClear.style.display = 'none';
+  btnAnalyze.style.display = 'flex';
+  camControls.style.display = 'none';
+  loading.style.display = 'none';
+  resultCard.style.display = 'none';
+  errorBox.style.display = 'none';
+  warnBox.style.display = 'none';
+  currentFile = null;
+  stopCam();
+  fileInput.value = '';
+}
+
+function stopCam() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+
+btnOpenCam.addEventListener('click', async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    camVideo.srcObject = stream;
+    previewImg.style.display = 'none';
+    camVideo.style.display = 'block';
+    btnClear.style.display = 'none';
+    btnAnalyze.style.display = 'none';
+    camControls.style.display = 'flex';
+    showPreview();
+  } catch {
+    showError('Camera access denied or unavailable on this device.');
+  }
+});
+
+btnSnap.addEventListener('click', () => {
+  snapCanvas.width  = camVideo.videoWidth;
+  snapCanvas.height = camVideo.videoHeight;
+  snapCanvas.getContext('2d').drawImage(camVideo, 0, 0);
+  stopCam();
+  snapCanvas.toBlob(blob => {
+    currentFile = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+    previewImg.src = URL.createObjectURL(blob);
+    previewImg.style.display = 'block';
+    camVideo.style.display = 'none';
+    btnClear.style.display = 'grid';
+    btnAnalyze.style.display = 'flex';
+    camControls.style.display = 'none';
+  }, 'image/jpeg', 0.92);
+});
+
+btnCancelCam.addEventListener('click', resetAll);
+btnClear.addEventListener('click', resetAll);
+document.getElementById('btn-retry').addEventListener('click', resetAll);
+
+function showError(msg) {
+  loading.style.display = 'none';
+  errorMsg.innerHTML = msg;
+  errorBox.style.display = 'flex';
+  btnAnalyze.style.display = 'flex';
+}
+
+function showWarn(msg) {
+  loading.style.display = 'none';
+  warnMsg.innerHTML = msg;
+  warnBox.style.display = 'flex';
+  btnAnalyze.style.display = 'flex';
+}
+
+btnAnalyze.addEventListener('click', async () => {
+  if (!currentFile) return;
+  btnAnalyze.style.display = 'none';
+  loading.style.display = 'flex';
+  resultCard.style.display = 'none';
+  errorBox.style.display = 'none';
+  warnBox.style.display = 'none';
+  setStatus('checking', 'Connecting…');
+
+  const fd = new FormData();
+  fd.append('file', currentFile);
+  try {
+    const res = await fetch(`${API_URL}/predict`, { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const data = await res.json();
+    setStatus('active', 'Ready');
+    if (data.not_a_leaf) {
+      const top = Object.entries(data.all_scores).sort((a,b)=>b[1]-a[1])[0];
+      showWarn(`This doesn't look like an onion leaf 🤔<br><small>Best match: <b>${top[0]}</b> at <b>${data.confidence.toFixed(1)}%</b> confidence. Upload a clear photo of an onion leaf.</small>`);
+    } else {
+      showResult(data);
+    }
+  } catch(e) {
+    setStatus('sleeping', 'Server sleeping…');
+    showError(`Could not connect. The server may be waking up — wait 30 seconds and try again.<br><small style="opacity:0.75">API: ${API_URL}</small>`);
+  } finally {
+    loading.style.display = 'none';
+  }
+});
+
+function showResult(data) {
+  const conf = data.confidence;
+  const name = data.disease;
+  const info = DISEASE_INFO[name] || {
+    emoji: '🌿', severity: 'low', spread: 'Unknown',
+    desc: 'Disease detected. Please consult your local agricultural technician.',
+    treatment: 'Consult your local DA extension officer.',
+    prevention: 'Practice good field hygiene and crop rotation.',
+    color: 'disease'
+  };
+
+  const hero = document.getElementById('result-hero');
+  hero.className = `result-header ${info.color === 'healthy' ? 'healthy' : 'disease'}`;
+  hero.setAttribute('data-emoji', info.emoji);
+  document.getElementById('result-badge').textContent = info.color === 'healthy' ? '✅ Healthy Plant' : '⚠️ Disease Detected';
+  document.getElementById('result-name').textContent = name;
+  document.getElementById('conf-fill').style.width = Math.min(conf, 100) + '%';
+  document.getElementById('conf-label').textContent = conf.toFixed(1) + '% confident';
+
+  const sevEl = document.getElementById('info-severity');
+  sevEl.textContent = info.severity.charAt(0).toUpperCase() + info.severity.slice(1);
+  sevEl.className = `sev-pill ${info.severity}`;
+  document.getElementById('info-spread').textContent = info.spread;
+  document.getElementById('info-desc').textContent = info.desc;
+  document.getElementById('info-treatment').textContent = info.treatment;
+  document.getElementById('info-prevention').textContent = info.prevention;
+
+  const container = document.getElementById('bars-container');
+  container.innerHTML = '';
+  const scores = data.all_scores || {};
+  const sorted = Object.entries(scores).sort((a,b) => b[1]-a[1]).slice(0,8);
+  sorted.forEach(([dname, pct]) => {
+    const isTop = dname === name;
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <div class="bar-lbl${isTop?' top':''}" title="${dname}">${dname}</div>
+      <div class="bar-track"><div class="bar-fill${isTop?'':' dim'}" style="width:${Math.max(pct,0.5).toFixed(1)}%"></div></div>
+      <div class="bar-pct${isTop?' top':''}">${pct.toFixed(1)}%</div>`;
+    container.appendChild(row);
+  });
+
+  resultCard.style.display = 'block';
+  resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function buildDiseaseGuide() {
+  const grid = document.getElementById('disease-grid');
+  const count = document.getElementById('guide-count');
+  const sevOrder = { high: 0, medium: 1, low: 2, none: 3 };
+  const entries = Object.entries(DISEASE_INFO).sort((a,b) => sevOrder[a[1].severity] - sevOrder[b[1].severity]);
+  count.textContent = `${entries.length} conditions`;
+  entries.forEach(([name, info]) => {
+    const card = document.createElement('div');
+    card.className = `disease-card sev-${info.severity}`;
+    card.innerHTML = `
+      <div class="dc-top">
+        <div class="dc-name">${name}</div>
+        <div class="dc-emoji">${info.emoji}</div>
+      </div>
+      <div class="dc-desc">${info.desc.substring(0,90)}…</div>
+      <span class="dc-sev ${info.severity}">${info.severity === 'none' ? 'healthy' : info.severity}</span>`;
+    grid.appendChild(card);
+  });
+}
+
+buildDiseaseGuide();
+</script>
+</body>
+</html>
