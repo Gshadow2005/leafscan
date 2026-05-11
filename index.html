@@ -964,8 +964,12 @@ btnAnalyze.addEventListener('click', async () => {
   fd.append('file', currentFile);
   try {
     const res = await fetch(`${API_URL}/predict`, { method: 'POST', body: fd });
-    if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
+    if (!res.ok) {
+      const msg = data.detail || 'Something went wrong. Please try again later.';
+      showError(msg);
+      return;
+    }
     setStatus('active', 'Ready');
     if (data.not_a_leaf) {
       const top = Object.entries(data.all_scores).sort((a,b)=>b[1]-a[1])[0];

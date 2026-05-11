@@ -4,7 +4,6 @@ Run:  python app/test_api.py
 Requires: pip install requests Pillow
 """
 
-
 import sys
 import json
 import io
@@ -70,7 +69,7 @@ def test_predict_jpeg():
     assert "disease" in data
     assert "confidence" in data
     assert "all_scores" in data
-    print(f"{PASS}  disease='{data['disease']}'  confidence={data['confidence']:.1f}%  demo={data.get('demo_mode')}")
+    print(f"{PASS}  disease='{data['disease']}'  confidence={data['confidence']:.1f}%")
     print(f"   Top 3 scores:")
     top3 = sorted(data["all_scores"].items(), key=lambda x: x[1], reverse=True)[:3]
     for name, score in top3:

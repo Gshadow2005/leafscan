@@ -11,39 +11,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from PIL import Image
 
+# ── Model configuration ───────────────────────────────────────────────────────
+MODEL_PATH = Path(__file__).resolve().parents[1] / "model" / "plant_disease_model.keras"
+CLASS_NAMES_PATH = MODEL_PATH.parent / "class_names.json"
+
 # ── Lazy model loading (loaded once on startup) ──────────────────────────────
 model = None
 CLASS_NAMES = []
-
-def project_paths():
-    """Compute model/class file locations relative to this file."""
-    # app/main.py -> project root
-    root_dir = Path(__file__).resolve().parents[1]
-    model_dir = root_dir / "model"
-    return {
-        "root_dir": root_dir,
-        "class_names": model_dir / "class_names.json",
-        "model_root": model_dir,
-        "cv_models_dir": model_dir / "cv_models",
-        "plant_disease_model": model_dir / "plant_disease_model.keras",
-    }
-
-
-def find_model():
-    """Find the best available model file."""
-    paths = project_paths()
-    candidates = [
-        paths["cv_models_dir"] / "model_fold_1.keras",
-        paths["cv_models_dir"] / "model_fold_2.keras",
-        paths["cv_models_dir"] / "model_fold_3.keras",
-        paths["cv_models_dir"] / "model_fold_4.keras",
-        paths["cv_models_dir"] / "model_fold_5.keras",
-        paths["plant_disease_model"],
-    ]
-    for p in candidates:
-        if p.exists():
-            return str(p)
-    return None
 
 
 @asynccontextmanager
@@ -51,9 +25,8 @@ async def lifespan(app: FastAPI):
     global model, CLASS_NAMES
 
     # Load class names
-    paths = project_paths()
-    if paths["class_names"].exists():
-        with open(paths["class_names"], encoding="utf-8") as f:
+    if CLASS_NAMES_PATH.exists():
+        with open(CLASS_NAMES_PATH, encoding="utf-8") as f:
             CLASS_NAMES = json.load(f)
         print(f"Loaded {len(CLASS_NAMES)} class names.")
     else:
@@ -66,22 +39,16 @@ async def lifespan(app: FastAPI):
         print("class_names.json not found — using default class list.")
 
     # Load TensorFlow + model
-    model_path = find_model()
-    if model_path:
-        print(f"Loading model from: {model_path} ...")
-        import tensorflow as tf
-        from keras.models import load_model as keras_load
-        global tf_available
-        tf_available = True
-        model = keras_load(model_path)
-        print("Model loaded and ready.")
-    else:
-        print("No model file found. /predict will return a demo response.")
-        print("Place your .keras model in cv_models/ or the project root.")
+    if not MODEL_PATH.exists():
+        raise RuntimeError("Service is unavailable. Please contact the administrator.")
+
+    print(f"Loading model from: {MODEL_PATH} ...")
+    from keras.models import load_model as keras_load
+    model = keras_load(str(MODEL_PATH))
+    print("Model loaded and ready.")
 
     yield  # App runs here
 
-    # Cleanup (optional)
     print("Shutting down LeafScan backend.")
 
 
@@ -107,7 +74,6 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
 
 
 def preprocess_image(image_bytes: bytes) -> np.ndarray:
-
     from keras.utils import load_img, img_to_array
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
         tmp.write(image_bytes)
@@ -153,7 +119,7 @@ async def predict(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported file type: {file.content_type}. "
-                   f"Allowed: jpeg, png, webp, bmp."
+                f"Allowed: jpeg, png, webp, bmp."
         )
 
     image_bytes = await file.read()
@@ -165,21 +131,12 @@ async def predict(file: UploadFile = File(...)):
             detail=f"File too large. Maximum allowed size is {MAX_FILE_SIZE_MB}MB."
         )
 
-    # ── Demo mode (no model loaded) ───────────────────────────────────────
+    # ── Guard: model must be loaded ───────────────────────────────────────
     if model is None:
-        import random
-        demo_scores = {name: round(random.uniform(0.5, 5.0), 2) for name in CLASS_NAMES}
-        top = max(demo_scores, key=demo_scores.get)
-        demo_scores[top] = round(random.uniform(70, 95), 2)
-        total = sum(demo_scores.values())
-        demo_scores = {k: round(v / total * 100, 2) for k, v in demo_scores.items()}
-        return JSONResponse({
-            "disease": top,
-            "confidence": demo_scores[top],
-            "all_scores": demo_scores,
-            "demo_mode": True,
-            "note": "No model loaded — returning demo data. Add your .keras model to cv_models/."
-        })
+        raise HTTPException(
+            status_code=503,
+            detail="Service temporarily unavailable. Please try again later or contact support."
+        )
 
     # ── Run inference ─────────────────────────────────────────────────────
     try:
@@ -206,5 +163,4 @@ async def predict(file: UploadFile = File(...)):
         "disease": disease,
         "confidence": round(confidence, 2),
         "all_scores": all_scores,
-        "demo_mode": False,
     })
