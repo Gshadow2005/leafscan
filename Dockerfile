@@ -10,7 +10,6 @@ USER user
 
 COPY app ./app
 COPY model ./model
-COPY frontend ./frontend
 
 EXPOSE 7860
 
