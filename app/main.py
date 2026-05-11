@@ -2,6 +2,7 @@ import os
 import json
 import io
 import numpy as np
+import tempfile
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -54,16 +55,15 @@ async def lifespan(app: FastAPI):
     if paths["class_names"].exists():
         with open(paths["class_names"], encoding="utf-8") as f:
             CLASS_NAMES = json.load(f)
-        print(f"✅ Loaded {len(CLASS_NAMES)} class names.")
+        print(f"Loaded {len(CLASS_NAMES)} class names.")
     else:
-
         CLASS_NAMES = [
             "Alternaria_D", "Botrytis Leaf Blight", "Bulb Rot", "Bulb_blight-D",
             "Caterpillar-P", "Downy mildew", "Fusarium-D", "Healthy leaves",
             "Iris yellow virus_augment", "Purple blotch", "Rust", "Virosis-D",
             "Xanthomonas Leaf Blight", "onion1", "stemphylium Leaf Blight"
         ]
-        print("⚠️  class_names.json not found — using default class list.")
+        print("class_names.json not found — using default class list.")
 
     # Load TensorFlow + model
     model_path = find_model()
@@ -74,10 +74,10 @@ async def lifespan(app: FastAPI):
         global tf_available
         tf_available = True
         model = keras_load(model_path)
-        print("✅ Model loaded and ready.")
+        print("Model loaded and ready.")
     else:
-        print("⚠️  No model file found. /predict will return a demo response.")
-        print("    Place your .keras model in cv_models/ or the project root.")
+        print("No model file found. /predict will return a demo response.")
+        print("Place your .keras model in cv_models/ or the project root.")
 
     yield  # App runs here
 
@@ -107,12 +107,19 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
 
 
 def preprocess_image(image_bytes: bytes) -> np.ndarray:
-    """Open, resize, and prepare image for model inference."""
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    img = img.resize(IMG_SIZE, Image.LANCZOS)
-    arr = np.array(img, dtype=np.float32)          # shape (224, 224, 3)
-    return np.expand_dims(arr, axis=0)              # shape (1, 224, 224, 3)
-    # Note: Rescaling (÷255) is baked into the model via keras.layers.Rescaling
+
+    from keras.utils import load_img, img_to_array
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+        tmp.write(image_bytes)
+        tmp_path = tmp.name
+
+    try:
+        img = load_img(tmp_path, target_size=IMG_SIZE)
+        arr = img_to_array(img)
+    finally:
+        os.unlink(tmp_path)
+
+    return np.expand_dims(arr, axis=0)
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
