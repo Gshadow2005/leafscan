@@ -833,11 +833,11 @@ async function checkServerStatus() {
       const data = await res.json();
       setStatus(data.model_ready ? 'active' : 'sleeping', data.model_ready ? 'Ready' : 'Loading model…');
     } else {
-      setStatus('sleeping', 'Waking up…');
+      setStatus('sleeping', 'Starting up…');
     }
   } catch (e) {
     if (e.name === 'AbortError') {
-      setStatus('sleeping', 'Waking up… (~30s)');
+      setStatus('sleeping', 'Starting up… (~30s)');
       setTimeout(checkServerStatus, 15000);
     } else {
       setStatus('offline', 'Offline');
@@ -981,8 +981,8 @@ btnAnalyze.addEventListener('click', async () => {
       showResult(data);
     }
   } catch(e) {
-    setStatus('sleeping', 'Server sleeping…');
-    showError(`Could not connect. The server may be waking up — wait 30 seconds and try again.`);
+    setStatus('sleeping', 'Server warming up…');
+    showError(`Could not connect. The server may be warming up — wait 30 seconds and try again.`);
   } finally {
     loading.style.display = 'none';
   }
