@@ -28,7 +28,7 @@ python test_api.py
 
 ```cmd
 cd frontend
-start leafscan_frontend_test.html
+start leafscan_frontend_local.html
 ```
 
 > Set Backend URL in the UI to: `http://127.0.0.1:8000`
