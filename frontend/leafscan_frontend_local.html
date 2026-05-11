@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeafScan - Local Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f0f4f0;
+      color: #1a2e1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 1rem; }
+    h1 { font-size: 1.3rem; font-weight: 700; color: #1a4d2e; }
+    h1 span { font-weight: 300; color: #4a7a5a; }
+    .badge {
+      display: inline-block; padding: 2px 10px;
+      background: #e0f0e0; border: 1px solid #aad0aa;
+      border-radius: 99px; font-size: 0.7rem; font-weight: 600;
+      color: #1a4d2e; letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .panel { background: #fff; border: 1px solid #d0ddd0; border-radius: 12px; padding: 1.25rem; }
+    label { display: block; font-size: 0.75rem; font-weight: 600; color: #4a7a5a; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+    input[type="text"] {
+      width: 100%; padding: 0.6rem 0.75rem;
+      border: 1px solid #d0ddd0; border-radius: 8px;
+      font-size: 0.85rem; font-family: monospace; color: #1a2e1a;
+      background: #f6faf6; outline: none;
+    }
+    input[type="text"]:focus { border-color: #2e7d46; }
+    .upload-zone {
+      border: 2px dashed #b0ccb0; border-radius: 10px;
+      padding: 2rem 1rem; text-align: center; cursor: pointer;
+      background: #f6faf6; transition: all 0.15s;
+    }
+    .upload-zone:hover, .upload-zone.over { border-color: #2e7d46; background: #edf7ed; }
+    .upload-zone p { font-size: 0.85rem; color: #4a7a5a; margin-top: 0.35rem; }
+    .upload-zone strong { font-size: 1rem; color: #1a4d2e; }
+    .preview-img {
+      width: 100%; max-height: 240px; object-fit: contain;
+      border-radius: 8px; border: 1px solid #d0ddd0;
+      background: #0d0d0d; display: none;
+    }
+    .btn {
+      width: 100%; padding: 0.75rem; border: none; border-radius: 8px;
+      font-size: 0.9rem; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #1a4d2e; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #0f3320; }
+    .btn-secondary { background: #f0f4f0; color: #4a7a5a; border: 1px solid #d0ddd0; font-weight: 500; }
+    .btn-secondary:hover { background: #e0eee0; }
+    .status-row { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: #4a7a5a; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot.idle  { background: #aaa; }
+    .dot.ok    { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
+    .dot.error { background: #e53e3e; }
+    .dot.loading { background: #f6ad2b; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .result-panel { display: none; border: 1px solid #d0ddd0; border-radius: 12px; overflow: hidden; }
+    .result-head { padding: 1rem 1.25rem; background: #1a4d2e; color: #fff; }
+    .result-head .small { font-size: 0.7rem; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+    .result-head .name  { font-size: 1.1rem; font-weight: 700; }
+    .result-head .conf  { font-size: 0.8rem; opacity: 0.8; margin-top: 3px; }
+    .result-body { padding: 1rem 1.25rem; background: #fff; }
+    .result-body .row { display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem; }
+    .result-body .row:last-child { margin-bottom: 0; }
+    .row-lbl { font-size: 0.72rem; color: #4a7a5a; width: 150px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row-lbl.top { color: #1a4d2e; font-weight: 700; }
+    .bar { flex: 1; height: 5px; background: #e5ede5; border-radius: 99px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; background: #2e7d46; transition: width 0.5s ease; }
+    .bar-fill.dim { background: #c8d8c8; }
+    .row-pct { font-size: 0.72rem; color: #4a7a5a; width: 36px; text-align: right; }
+    .row-pct.top { color: #1a4d2e; font-weight: 700; }
+    details { font-size: 0.78rem; }
+    summary { cursor: pointer; color: #4a7a5a; font-weight: 600; padding: 0.5rem 0; user-select: none; }
+    pre {
+      background: #f0f4f0; border: 1px solid #d0ddd0; border-radius: 8px;
+      padding: 0.875rem; font-size: 0.72rem; overflow-x: auto;
+      color: #1a2e1a; margin-top: 0.5rem; line-height: 1.5;
+    }
+    input[type=file], canvas { display: none; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <h1>🌿 Leaf<span>Scan</span></h1>
+    <span class="badge">Local Test</span>
+  </div>
+
+  <div class="panel">
+    <label>Backend URL</label>
+    <input type="text" id="api-url" value="http://127.0.0.1:8000/" />
+    <div class="status-row" style="margin-top:0.6rem;">
+      <div class="dot idle" id="dot"></div>
+      <span id="status-text">—</span>
+      <button onclick="ping()" style="margin-left:auto; font-size:0.72rem; padding:3px 10px; border:1px solid #d0ddd0; border-radius:6px; background:#f0f4f0; cursor:pointer; font-family:inherit; color:#4a7a5a;">Ping</button>
+    </div>
+  </div>
+
+  <div class="panel" style="display:flex; flex-direction:column; gap:0.75rem;">
+    <label>Image</label>
+    <div class="upload-zone" id="drop-zone">
+      <strong>📂 Click or drop an image</strong>
+      <p>JPG · PNG · max 10MB</p>
+    </div>
+    <img class="preview-img" id="preview" alt="preview" />
+    <button class="btn btn-secondary" id="btn-clear" onclick="clearImage()" style="display:none">✕ Clear image</button>
+  </div>
+
+  <button class="btn btn-primary" id="btn-submit" disabled onclick="submit()">🔬 Analyze Leaf</button>
+
+  <div class="result-panel" id="result-panel">
+    <div class="result-head" id="result-head">
+      <div class="small">Detected condition</div>
+      <div class="name" id="r-name">—</div>
+      <div class="conf" id="r-conf">—</div>
+    </div>
+    <div class="result-body" id="r-bars"></div>
+  </div>
+
+  <details id="raw-details" style="display:none">
+    <summary>Raw JSON response</summary>
+    <pre id="raw-json"></pre>
+  </details>
+
+</div>
+
+<input type="file" id="file-input" accept="image/*" />
+<canvas id="canvas"></canvas>
+
+<script>
+let file = null;
+const dropZone  = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const preview   = document.getElementById('preview');
+const btnSubmit = document.getElementById('btn-submit');
+const btnClear  = document.getElementById('btn-clear');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) setFile(f);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+function setFile(f) {
+  file = f;
+  preview.src = URL.createObjectURL(f);
+  preview.style.display = 'block';
+  dropZone.style.display = 'none';
+  btnClear.style.display = 'block';
+  btnSubmit.disabled = false;
+  document.getElementById('result-panel').style.display = 'none';
+  document.getElementById('raw-details').style.display = 'none';
+}
+
+function clearImage() {
+  file = null;
+  preview.style.display = 'none'; preview.src = '';
+  dropZone.style.display = 'block';
+  btnClear.style.display = 'none';
+  btnSubmit.disabled = true;
+  fileInput.value = '';
+  document.getElementById('result-panel').style.display = 'none';
+  document.getElementById('raw-details').style.display = 'none';
+}
+
+async function ping() {
+  const url = document.getElementById('api-url').value.replace(/\/$/, '');
+  setStatus('loading', 'Pinging…');
+  try {
+    const res = await fetch(`${url}/health`);
+    const data = await res.json();
+    setStatus('ok', `OK — model_ready: ${data.model_ready}`);
+  } catch { setStatus('error', 'Could not reach server'); }
+}
+
+function setStatus(state, text) {
+  document.getElementById('dot').className = `dot ${state}`;
+  document.getElementById('status-text').textContent = text;
+}
+
+async function submit() {
+  if (!file) return;
+  const url = document.getElementById('api-url').value.replace(/\/$/, '');
+  btnSubmit.disabled = true;
+  btnSubmit.textContent = '⏳ Analyzing…';
+  setStatus('loading', 'Running inference…');
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch(`${url}/predict`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) { setStatus('error', `Error ${res.status}: ${data.detail || 'Unknown error'}`); return; }
+    setStatus('ok', 'Done');
+    showResult(data);
+    document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
+    document.getElementById('raw-details').style.display = 'block';
+  } catch (e) {
+    setStatus('error', `Failed: ${e.message}`);
+  } finally {
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = '🔬 Analyze Leaf';
+  }
+}
+
+function showResult(data) {
+  document.getElementById('r-name').textContent = data.disease;
+  document.getElementById('r-conf').textContent = `${data.confidence.toFixed(1)}% confidence`;
+  document.getElementById('result-head').style.background =
+    data.disease === 'Healthy leaves' ? '#166534' : '#7f1d1d';
+  const bars = document.getElementById('r-bars');
+  bars.innerHTML = '';
+  const sorted = Object.entries(data.all_scores || {}).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+  sorted.forEach(([name, pct]) => {
+    const top = name === data.disease;
+    bars.innerHTML += `
+      <div class="row">
+        <div class="row-lbl${top?' top':''}" title="${name}">${name}</div>
+        <div class="bar"><div class="bar-fill${top?'':' dim'}" style="width:${Math.max(pct,0.5).toFixed(1)}%"></div></div>
+        <div class="row-pct${top?' top':''}">${pct.toFixed(1)}%</div>
+      </div>`;
+  });
+  document.getElementById('result-panel').style.display = 'block';
+  document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+ping();
+</script>
+</body>
+</html>

@@ -62,6 +62,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://gshadow2005.github.io"],
+    # allow_origins=["*"],  For testing purposes; restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
