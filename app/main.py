@@ -59,10 +59,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── CORS — allow all origins (restrict in production if needed) ───────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://gshadow2005.github.io"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
