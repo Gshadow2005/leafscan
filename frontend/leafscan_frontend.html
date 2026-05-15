@@ -333,7 +333,6 @@
       font-size: 0.82rem; line-height: 1.55;
     }
     .alert-box.error { background: var(--red-bg); border: 1px solid rgba(181,58,47,0.18); color: var(--red); }
-    .alert-box.warn  { background: var(--amber-bg); border: 1px solid rgba(201,123,26,0.2); color: var(--amber); }
     .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
 
     /* ── Right sidebar ── */
@@ -626,10 +625,6 @@
         <span class="alert-icon">⚠️</span>
         <span id="error-msg">Could not connect to server.</span>
       </div>
-      <div class="alert-box warn" id="warn-box" role="alert">
-        <span class="alert-icon">🤔</span>
-        <span id="warn-msg">This doesn't look like an onion leaf.</span>
-      </div>
 
       <!-- Result -->
       <div class="result-card" id="result-card">
@@ -814,8 +809,6 @@ const loading     = document.getElementById('loading');
 const resultCard  = document.getElementById('result-card');
 const errorBox    = document.getElementById('error-box');
 const errorMsg    = document.getElementById('error-msg');
-const warnBox     = document.getElementById('warn-box');
-const warnMsg     = document.getElementById('warn-msg');
 const snapCanvas  = document.getElementById('snap-canvas');
 const statusDot   = document.getElementById('status-dot');
 const statusText  = document.getElementById('status-text');
@@ -880,7 +873,6 @@ function showPreview() {
   previewSec.style.display = 'block';
   resultCard.style.display = 'none';
   errorBox.style.display = 'none';
-  warnBox.style.display = 'none';
 }
 
 function resetAll() {
@@ -895,7 +887,6 @@ function resetAll() {
   loading.style.display = 'none';
   resultCard.style.display = 'none';
   errorBox.style.display = 'none';
-  warnBox.style.display = 'none';
   currentFile = null;
   stopCam();
   fileInput.value = '';
@@ -947,20 +938,12 @@ function showError(msg) {
   btnAnalyze.style.display = 'flex';
 }
 
-function showWarn(msg) {
-  loading.style.display = 'none';
-  warnMsg.innerHTML = msg;
-  warnBox.style.display = 'flex';
-  btnAnalyze.style.display = 'flex';
-}
-
 btnAnalyze.addEventListener('click', async () => {
   if (!currentFile) return;
   btnAnalyze.style.display = 'none';
   loading.style.display = 'flex';
   resultCard.style.display = 'none';
   errorBox.style.display = 'none';
-  warnBox.style.display = 'none';
   setStatus('checking', 'Connecting…');
 
   const fd = new FormData();
@@ -974,12 +957,8 @@ btnAnalyze.addEventListener('click', async () => {
       return;
     }
     setStatus('active', 'Ready');
-    if (data.not_a_leaf) {
-      const top = Object.entries(data.all_scores).sort((a,b)=>b[1]-a[1])[0];
-      showWarn(`This doesn't look like an onion leaf 🤔<br><small>Best match: <b>${top[0]}</b> at <b>${data.confidence.toFixed(1)}%</b> confidence. Upload a clear photo of an onion leaf.</small>`);
-    } else {
-      showResult(data);
-    }
+    showResult(data);
+
   } catch(e) {
     setStatus('sleeping', 'Server warming up…');
     showError(`Could not connect. The server may be warming up — wait 30 seconds and try again.`);
